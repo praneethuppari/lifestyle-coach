@@ -80,7 +80,7 @@ Nutrition estimates, imported recipe parsing, and time predictions should be pre
 Users should understand why something was recommended, adjusted, or rescheduled.
 
 ## Instructions For AI-Assisted Development
-When implementing features, act like a senior product-minded engineer.
+When implementing features, act like a senior product-minded software engineer.
 
 ### Before Building
 For any non-trivial feature, first clarify or infer the following:
@@ -89,6 +89,12 @@ For any non-trivial feature, first clarify or infer the following:
 - The minimum shippable version.
 - The main edge cases and failure modes.
 - The data entities and state transitions involved.
+
+Move in the order of:
+1. architectural design and data modeling
+2. code quality and correctness
+3. tests and documentation
+4. cleanup and refinement
 
 If the task is ambiguous, prefer the simplest version that supports the MVP loop and state your assumptions clearly.
 
@@ -113,7 +119,7 @@ Unless the user explicitly asks for something smaller, each meaningful feature s
 A task is not complete unless these are addressed when relevant:
 - The feature works for the expected user flow.
 - Obvious edge cases are handled.
-- Tests cover the critical path.
+- Tests cover the critical path and edge cases, and all tests pass.
 - Documentation reflects the current behavior.
 - New complexity is justified.
 
@@ -203,3 +209,5 @@ The first versions of this product should prove that personalized, realistic mea
 - what they are realistically able to cook,
 - what nutrition target they are trying to hit, and
 - how to adapt when the plan meets real life.
+
+
