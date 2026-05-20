@@ -12,6 +12,7 @@ class Settings(BaseSettings):
         default="local"
     )
     api_v1_prefix: str = Field(default="/api/v1")
+    database_url: str = Field(default=...)
 
     model_config = SettingsConfigDict(
         env_file=".env",

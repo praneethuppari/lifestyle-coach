@@ -48,3 +48,5 @@ Deferred until a real feature requires them:
 ## Follow-on Trigger
 
 Add PostgreSQL and migrations only when the first persistent backend feature is implemented.
+
+**Resolved.** PostgreSQL, SQLAlchemy, Alembic, and the `recipes` table were added when recipe storage became the next required feature. See [database-setup.md](database-setup.md) for full setup and architecture details.
