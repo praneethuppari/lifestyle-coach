@@ -79,6 +79,9 @@ Nutrition estimates, imported recipe parsing, and time predictions should be pre
 6. Keep trust high.
 Users should understand why something was recommended, adjusted, or rescheduled.
 
+7. Simplicity first.
+"Make everything as simple as possible, but not simpler." — Einstein. Prefer the simplest design that correctly serves the use case. Do not add indexes, abstractions, caching layers, or architectural complexity before there is a demonstrated need for them. Premature optimization and over-engineering are bugs, not features.
+
 ## Instructions For AI-Assisted Development
 When implementing features, act like a senior product-minded software engineer.
 
@@ -145,6 +148,16 @@ When designing or reviewing a feature, ask:
 - Flag imported recipe data as potentially incomplete until normalized.
 - Preserve source attribution and legal compliance when importing external content.
 - Treat user health, preference, and schedule data as sensitive.
+
+## Local Development Setup
+
+The backend uses a Python virtual environment located at `/Users/praneethuppari/Documents/playground/lifestyle-coach/.venv`.
+
+**Before running any terminal command in the backend**, the virtual environment must be active. Activate it with:
+```
+source /Users/praneethuppari/Documents/playground/lifestyle-coach/.venv/bin/activate
+```
+All backend commands — `alembic`, `pytest`, `uvicorn`, `ruff`, `pip`, etc. — require this to be active first.
 
 ## Engineering Standards
 
