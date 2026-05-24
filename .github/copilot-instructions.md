@@ -234,6 +234,36 @@ Omit a section only if it is genuinely not applicable (e.g. a docs-only branch h
 - SQL: follow a consistent readable style, preferably Simon Holywell's conventions.
 - APIs: use clear RESTful patterns unless the existing system uses a different standard.
 
+### Pydantic Schema Design
+
+#### Separate write and read bases — never share them
+
+Write models (request bodies) and read models (responses) have different purposes and must not share a base class.
+
+- **Write models** (`RecipeImport`, `RecipeUpdate`, etc.) enforce input validation constraints: `max_length`, `ge`, `le`, `pattern`, etc. These should inherit from a `<Resource>WriteBase`.
+- **Read models** (`RecipeResponse`, etc.) are validated against ORM data via `model_validate()`. Input constraints must not appear on read models — a DB value that violates a `max_length` constraint would cause a 500 instead of returning the data. Read models should inherit from a `<Resource>ReadBase` with plain type annotations and no constraints.
+
+```
+RecipeWriteBase   — shared fields with input constraints
+RecipeReadBase    — same fields, no constraints, safe for ORM validation
+
+RecipeImport(RecipeWriteBase)
+RecipeUpdate(RecipeWriteBase)
+RecipeResponse(RecipeReadBase)   — model_config = {"from_attributes": True}
+```
+
+#### What belongs in each base
+
+Put a field in the write or read base only if it appears identically in two or more sibling schemas. Fields that differ in type, nullability, or default across siblings (e.g. `title`, `serving_unit`, `tags` differ between `RecipeImport` and `RecipeUpdate`) stay on the subclass, not the base.
+
+#### Subclasses can override base fields
+
+Declaring a field in a subclass with a different type or constraints overrides the inherited version. Use this when a sibling needs a stricter or looser version of a base field rather than creating a separate base.
+
+#### `from_attributes` belongs only on response models
+
+Only response model classes that are directly serialized from ORM objects should carry `model_config = {"from_attributes": True}`. Base classes and write models should not.
+
 ### REST API Endpoint Design Guidelines
 
 #### Foundations: What REST Actually Is

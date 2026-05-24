@@ -15,7 +15,56 @@ class RecipeInstructionStep(BaseModel):
     tip: str | None = None
 
 
-class RecipeImport(BaseModel):
+class RecipeWriteBase(BaseModel):
+    """Shared fields for write models (import and update).
+
+    Includes input validation constraints — not safe to use as a response base
+    because Pydantic v2 runs validators against ORM data on model_validate().
+    """
+
+    description: str | None = None
+    image_url: str | None = Field(default=None, max_length=2048)
+    source_url: str | None = Field(default=None, max_length=2048)
+    source_author: str | None = Field(default=None, max_length=255)
+    cuisine: str | None = Field(default=None, max_length=100)
+    difficulty: RecipeDifficulty | None = None
+    prep_time_minutes: int | None = Field(default=None, ge=0)
+    cook_time_minutes: int | None = Field(default=None, ge=0)
+    servings: int | None = Field(default=None, ge=1)
+    serving_weight_g: float | None = Field(default=None, ge=0)
+    instructions: list[RecipeInstructionStep] | None = None
+    calories: float | None = Field(default=None, ge=0)
+    protein_g: float | None = Field(default=None, ge=0)
+    carbs_g: float | None = Field(default=None, ge=0)
+    fat_g: float | None = Field(default=None, ge=0)
+    fiber_g: float | None = Field(default=None, ge=0)
+
+
+class RecipeReadBase(BaseModel):
+    """Shared fields for read models (responses).
+
+    No input constraints — safe for ORM validation via model_validate().
+    """
+
+    description: str | None = None
+    image_url: str | None = None
+    source_url: str | None = None
+    source_author: str | None = None
+    cuisine: str | None = None
+    difficulty: RecipeDifficulty | None = None
+    prep_time_minutes: int | None = None
+    cook_time_minutes: int | None = None
+    servings: int | None = None
+    serving_weight_g: float | None = None
+    instructions: list[RecipeInstructionStep] | None = None
+    calories: float | None = None
+    protein_g: float | None = None
+    carbs_g: float | None = None
+    fat_g: float | None = None
+    fiber_g: float | None = None
+
+
+class RecipeImport(RecipeWriteBase):
     """Fields accepted when a user manually imports a custom recipe.
 
     System-managed fields (id, user_id, source_type, is_global, is_verified,
@@ -23,74 +72,26 @@ class RecipeImport(BaseModel):
     """
 
     title: str = Field(max_length=255)
-    description: str | None = None
-    image_url: str | None = Field(default=None, max_length=2048)
-    source_url: str | None = Field(default=None, max_length=2048)
-    source_author: str | None = Field(default=None, max_length=255)
-    cuisine: str | None = Field(default=None, max_length=100)
-    difficulty: RecipeDifficulty | None = None
-    prep_time_minutes: int | None = Field(default=None, ge=0)
-    cook_time_minutes: int | None = Field(default=None, ge=0)
-    servings: int | None = Field(default=None, ge=1)
     serving_unit: str = "portion"
-    serving_weight_g: float | None = Field(default=None, ge=0)
-    instructions: list[RecipeInstructionStep] | None = None
-    calories: float | None = Field(default=None, ge=0)
-    protein_g: float | None = Field(default=None, ge=0)
-    carbs_g: float | None = Field(default=None, ge=0)
-    fat_g: float | None = Field(default=None, ge=0)
-    fiber_g: float | None = Field(default=None, ge=0)
     tags: list[str] = Field(default_factory=list)
 
 
-class RecipeUpdate(BaseModel):
+class RecipeUpdate(RecipeWriteBase):
     """Partial metadata update for a recipe. All fields optional. No ingredients."""
 
     title: str | None = Field(default=None, max_length=255)
-    description: str | None = None
-    image_url: str | None = Field(default=None, max_length=2048)
-    source_url: str | None = Field(default=None, max_length=2048)
-    source_author: str | None = Field(default=None, max_length=255)
-    cuisine: str | None = Field(default=None, max_length=100)
-    difficulty: RecipeDifficulty | None = None
-    prep_time_minutes: int | None = Field(default=None, ge=0)
-    cook_time_minutes: int | None = Field(default=None, ge=0)
-    servings: int | None = Field(default=None, ge=1)
     serving_unit: str | None = Field(default=None, max_length=50)
-    serving_weight_g: float | None = Field(default=None, ge=0)
-    instructions: list[RecipeInstructionStep] | None = None
-    calories: float | None = Field(default=None, ge=0)
-    protein_g: float | None = Field(default=None, ge=0)
-    carbs_g: float | None = Field(default=None, ge=0)
-    fat_g: float | None = Field(default=None, ge=0)
-    fiber_g: float | None = Field(default=None, ge=0)
     tags: list[str] | None = None
 
 
-class RecipeResponse(BaseModel):
+class RecipeResponse(RecipeReadBase):
     id: uuid.UUID
     user_id: uuid.UUID | None
     title: str
-    description: str | None
-    image_url: str | None
-    source_url: str | None
     source_type: RecipeSourceType | None
-    source_author: str | None
     is_global: bool
     is_verified: bool
-    cuisine: str | None
-    difficulty: RecipeDifficulty | None
-    prep_time_minutes: int | None
-    cook_time_minutes: int | None
-    servings: int | None
     serving_unit: str
-    serving_weight_g: float | None
-    instructions: list[RecipeInstructionStep] | None
-    calories: float | None
-    protein_g: float | None
-    carbs_g: float | None
-    fat_g: float | None
-    fiber_g: float | None
     tags: list[str]
     created_at: datetime
     updated_at: datetime
