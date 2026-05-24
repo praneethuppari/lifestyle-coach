@@ -69,7 +69,11 @@ class Recipe(Base):
     # Cooking info
     prep_time_minutes: Mapped[int | None] = mapped_column(nullable=True)
     cook_time_minutes: Mapped[int | None] = mapped_column(nullable=True)
-    servings: Mapped[int | None] = mapped_column(nullable=True)
+    servings: Mapped[int | None] = mapped_column(nullable=True, server_default="1")
+    serving_unit: Mapped[str] = mapped_column(
+        String(50), nullable=False, default="portion", server_default="portion"
+    )
+    serving_weight_g: Mapped[float | None] = mapped_column(Numeric(7, 2), nullable=True)
 
     # Instructions — step-by-step cooking execution guidance.
     # Schema per object: {"step": int, "instruction": str,
