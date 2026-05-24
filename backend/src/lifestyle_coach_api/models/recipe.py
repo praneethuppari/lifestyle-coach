@@ -101,6 +101,6 @@ class Recipe(Base):
 
     # Relationships
     user: Mapped["User | None"] = relationship("User", back_populates="recipes")
-    recipe_ingredients: Mapped[list["RecipeIngredient"]] = relationship(  # noqa: F821
+    ingredients: Mapped[list["RecipeIngredient"]] = relationship(  # noqa: F821
         "RecipeIngredient", back_populates="recipe", cascade="all, delete-orphan"
     )

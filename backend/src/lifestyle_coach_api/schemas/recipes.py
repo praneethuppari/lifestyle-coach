@@ -15,6 +15,46 @@ class RecipeInstructionStep(BaseModel):
     tip: str | None = None
 
 
+class RecipeIngredientItem(BaseModel):
+    """Write model for a single ingredient entry within a recipe payload."""
+
+    ingredient_id: uuid.UUID
+    quantity: float | None = Field(default=None, ge=0)
+    unit: str | None = Field(default=None, max_length=30)
+    preparation: str | None = Field(default=None, max_length=100)
+    notes: str | None = Field(default=None, max_length=255)
+    order: int = Field(default=0, ge=0)
+
+
+class IngredientSummaryResponse(BaseModel):
+    """Minimal ingredient details embedded inside a recipe ingredient response."""
+
+    id: uuid.UUID
+    name: str
+    brand: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class RecipeIngredientResponse(BaseModel):
+    """A single ingredient line in a recipe response.
+
+    Nests an IngredientSummaryResponse alongside the recipe-specific association
+    fields (quantity, unit, preparation, notes, order). Pydantic resolves the
+    nested `ingredient` attribute automatically via from_attributes.
+    """
+
+    ingredient_id: uuid.UUID
+    ingredient: IngredientSummaryResponse
+    quantity: float | None = None
+    unit: str | None = None
+    preparation: str | None = None
+    notes: str | None = None
+    order: int
+
+    model_config = {"from_attributes": True}
+
+
 class RecipeWriteBase(BaseModel):
     """Shared fields for write models (import and update).
 
@@ -74,14 +114,20 @@ class RecipeImport(RecipeWriteBase):
     title: str = Field(max_length=255)
     serving_unit: str = "portion"
     tags: list[str] = Field(default_factory=list)
+    ingredients: list[RecipeIngredientItem] = Field(default_factory=list)
 
 
 class RecipeUpdate(RecipeWriteBase):
-    """Partial metadata update for a recipe. All fields optional. No ingredients."""
+    """Partial update for a recipe. All fields optional.
+
+    If ingredients is provided, it fully replaces the recipe's current ingredient set.
+    If ingredients is absent, the existing ingredient rows are left untouched.
+    """
 
     title: str | None = Field(default=None, max_length=255)
     serving_unit: str | None = Field(default=None, max_length=50)
     tags: list[str] | None = None
+    ingredients: list[RecipeIngredientItem] | None = None
 
 
 class RecipeResponse(RecipeReadBase):
@@ -93,6 +139,7 @@ class RecipeResponse(RecipeReadBase):
     is_verified: bool
     serving_unit: str
     tags: list[str]
+    ingredients: list[RecipeIngredientResponse] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 

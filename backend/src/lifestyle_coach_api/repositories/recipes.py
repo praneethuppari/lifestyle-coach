@@ -1,9 +1,10 @@
 import uuid
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from lifestyle_coach_api.models.recipe import Recipe
+from lifestyle_coach_api.models.recipe_ingredient import RecipeIngredient
 
 
 class RecipeRepository:
@@ -16,10 +17,18 @@ class RecipeRepository:
         self._db.add(recipe)
         self._db.commit()
         self._db.refresh(recipe)
-        return recipe
+        return self.get_by_id(recipe.id)  # type: ignore[return-value]  # reload with eager-loaded relations
 
     def get_by_id(self, recipe_id: uuid.UUID) -> Recipe | None:
-        return self._db.get(Recipe, recipe_id)
+        return self._db.scalar(
+            select(Recipe)
+            .options(
+                selectinload(Recipe.ingredients).selectinload(
+                    RecipeIngredient.ingredient
+                )
+            )
+            .where(Recipe.id == recipe_id)
+        )
 
     def list_personal(
         self,
@@ -70,11 +79,24 @@ class RecipeRepository:
         return recipes, total
 
     def update(self, recipe: Recipe, data: dict) -> Recipe:
+        ingredients_data = data.pop("ingredients", None)
         for key, value in data.items():
             setattr(recipe, key, value)
+        if ingredients_data is not None:
+            recipe.ingredients = [
+                RecipeIngredient(
+                    recipe_id=recipe.id,
+                    ingredient_id=item["ingredient_id"],
+                    quantity=item.get("quantity"),
+                    unit=item.get("unit"),
+                    preparation=item.get("preparation"),
+                    notes=item.get("notes"),
+                    order=item.get("order", 0),
+                )
+                for item in ingredients_data
+            ]
         self._db.commit()
-        self._db.refresh(recipe)
-        return recipe
+        return self.get_by_id(recipe.id)  # type: ignore[return-value]  # reload with eager-loaded relations
 
     def delete(self, recipe: Recipe) -> None:
         self._db.delete(recipe)
