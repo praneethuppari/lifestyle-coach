@@ -19,7 +19,7 @@ cp .env.example .env
 ## Run the API
 
 ```bash
-uvicorn lifestyle_coach_api.main:app --reload --app-dir src
+fastapi dev src/lifestyle_coach_api/main.py
 ```
 
 The API will be available at `http://127.0.0.1:8000`.
