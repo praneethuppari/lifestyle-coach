@@ -63,7 +63,7 @@ class RecipeIngredient(Base):
 
     # Relationships
     recipe: Mapped["Recipe"] = relationship(  # noqa: F821
-        "Recipe", back_populates="recipe_ingredients"
+        "Recipe", back_populates="ingredients"
     )
     ingredient: Mapped["Ingredient"] = relationship(
         "Ingredient", back_populates="recipe_ingredients"
