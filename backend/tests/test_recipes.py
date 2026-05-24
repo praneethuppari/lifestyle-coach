@@ -1,3 +1,4 @@
+import types
 import uuid
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
@@ -9,11 +10,17 @@ from lifestyle_coach_api.api.dependencies import get_current_user_id
 from lifestyle_coach_api.api.routes.recipes import get_recipe_service
 from lifestyle_coach_api.core.errors import NotFoundError
 from lifestyle_coach_api.main import app
-from lifestyle_coach_api.models.recipe import Recipe, RecipeDifficulty, RecipeSourceType
+from lifestyle_coach_api.models.recipe import RecipeDifficulty, RecipeSourceType
 from lifestyle_coach_api.services.recipes import RecipeService
 
 
-def _make_recipe(**kwargs) -> Recipe:
+def _make_recipe(**kwargs) -> types.SimpleNamespace:
+    """Build a plain namespace that satisfies RecipeResponse.model_validate().
+
+    Uses SimpleNamespace instead of a real SQLAlchemy Recipe to avoid ORM
+    relationship machinery during tests (backref validation fails on non-ORM
+    objects assigned to relationship collections).
+    """
     defaults = {
         "id": uuid.uuid4(),
         "user_id": uuid.uuid4(),
@@ -39,10 +46,11 @@ def _make_recipe(**kwargs) -> Recipe:
         "fat_g": None,
         "fiber_g": None,
         "tags": [],
+        "ingredients": [],
         "created_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
         "updated_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
     }
-    return Recipe(**{**defaults, **kwargs})
+    return types.SimpleNamespace(**{**defaults, **kwargs})
 
 
 @pytest.fixture
@@ -493,4 +501,152 @@ class TestGetCatalogRecipe:
         response = client.get("/api/v1/catalog/recipes/not-a-uuid")
 
         assert response.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# Recipe + ingredient integration tests
+# ---------------------------------------------------------------------------
+
+
+def _make_recipe_ingredient(ingredient_id: uuid.UUID, **kwargs):
+    """Build a plain namespace that looks like a RecipeIngredient ORM row."""
+    import types
+
+    ingredient = types.SimpleNamespace(
+        id=kwargs.get("ingredient_id", uuid.uuid4()),
+        name=kwargs.get("name", "Chicken breast"),
+        brand=kwargs.get("brand", None),
+    )
+    return types.SimpleNamespace(
+        ingredient_id=ingredient_id,
+        quantity=kwargs.get("quantity", 200.0),
+        unit=kwargs.get("unit", "g"),
+        preparation=kwargs.get("preparation", None),
+        notes=kwargs.get("notes", None),
+        order=kwargs.get("order", 0),
+        ingredient=ingredient,
+    )
+
+
+class TestRecipeWithIngredients:
+    def test_import_recipe_with_ingredients_returns_embedded_list(
+        self, client: TestClient
+    ) -> None:
+        user_id = uuid.uuid4()
+        ingredient_id = uuid.uuid4()
+        recipe_id = uuid.uuid4()
+        ri = _make_recipe_ingredient(ingredient_id, name="Chicken breast")
+        recipe = _make_recipe(id=recipe_id, user_id=user_id, ingredients=[ri])
+
+        mock_service = MagicMock(spec=RecipeService)
+        mock_service.import_custom.return_value = recipe
+        app.dependency_overrides[get_recipe_service] = lambda: mock_service
+        app.dependency_overrides[get_current_user_id] = lambda: user_id
+
+        response = client.post(
+            f"/api/v1/users/{user_id}/recipes",
+            json={
+                "title": "Chicken Salad",
+                "ingredients": [
+                    {"ingredient_id": str(ingredient_id), "quantity": 200, "unit": "g"}
+                ],
+            },
+        )
+
+        assert response.status_code == 201
+        body = response.json()
+        assert len(body["ingredients"]) == 1
+        assert body["ingredients"][0]["ingredient"]["name"] == "Chicken breast"
+        assert body["ingredients"][0]["quantity"] == 200.0
+        assert body["ingredients"][0]["unit"] == "g"
+
+    def test_import_recipe_passes_ingredient_items_to_service(
+        self, client: TestClient
+    ) -> None:
+        user_id = uuid.uuid4()
+        ingredient_id = uuid.uuid4()
+        recipe = _make_recipe(user_id=user_id)
+
+        mock_service = MagicMock(spec=RecipeService)
+        mock_service.import_custom.return_value = recipe
+        app.dependency_overrides[get_recipe_service] = lambda: mock_service
+        app.dependency_overrides[get_current_user_id] = lambda: user_id
+
+        client.post(
+            f"/api/v1/users/{user_id}/recipes",
+            json={
+                "title": "Chicken Salad",
+                "ingredients": [
+                    {"ingredient_id": str(ingredient_id), "quantity": 200, "unit": "g"}
+                ],
+            },
+        )
+
+        mock_service.import_custom.assert_called_once()
+        data = mock_service.import_custom.call_args[0][1]
+        assert len(data.ingredients) == 1
+        assert data.ingredients[0].ingredient_id == ingredient_id
+
+    def test_recipe_response_includes_empty_ingredients_by_default(
+        self, client: TestClient
+    ) -> None:
+        user_id = uuid.uuid4()
+        recipe = _make_recipe(user_id=user_id, recipe_ingredients=[])
+
+        mock_service = MagicMock(spec=RecipeService)
+        mock_service.import_custom.return_value = recipe
+        app.dependency_overrides[get_recipe_service] = lambda: mock_service
+        app.dependency_overrides[get_current_user_id] = lambda: user_id
+
+        response = client.post(
+            f"/api/v1/users/{user_id}/recipes",
+            json={"title": "Simple Recipe"},
+        )
+
+        assert response.status_code == 201
+        assert response.json()["ingredients"] == []
+
+    def test_update_recipe_passes_ingredient_replacement_to_service(
+        self, client: TestClient
+    ) -> None:
+        user_id = uuid.uuid4()
+        ingredient_id = uuid.uuid4()
+        recipe = _make_recipe(user_id=user_id)
+
+        mock_service = MagicMock(spec=RecipeService)
+        mock_service.update.return_value = recipe
+        app.dependency_overrides[get_recipe_service] = lambda: mock_service
+        app.dependency_overrides[get_current_user_id] = lambda: user_id
+
+        response = client.patch(
+            f"/api/v1/recipes/{recipe.id}",
+            json={
+                "ingredients": [
+                    {"ingredient_id": str(ingredient_id), "quantity": 150, "unit": "ml"}
+                ]
+            },
+        )
+
+        assert response.status_code == 200
+        mock_service.update.assert_called_once()
+        data = mock_service.update.call_args[0][2]
+        assert data.ingredients is not None
+        assert len(data.ingredients) == 1
+        assert data.ingredients[0].ingredient_id == ingredient_id
+
+    def test_update_without_ingredients_key_leaves_ingredients_unset(
+        self, client: TestClient
+    ) -> None:
+        user_id = uuid.uuid4()
+        recipe = _make_recipe(user_id=user_id)
+
+        mock_service = MagicMock(spec=RecipeService)
+        mock_service.update.return_value = recipe
+        app.dependency_overrides[get_recipe_service] = lambda: mock_service
+        app.dependency_overrides[get_current_user_id] = lambda: user_id
+
+        client.patch(f"/api/v1/recipes/{recipe.id}", json={"title": "New Title"})
+
+        data = mock_service.update.call_args[0][2]
+        assert data.ingredients is None
 
