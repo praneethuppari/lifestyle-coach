@@ -25,32 +25,25 @@ def get_recipe_service(db: Annotated[Session, Depends(get_db)]) -> RecipeService
 
 
 # ---------------------------------------------------------------------------
-# Legacy router — do not modify (will be removed in feature/basic-auth)
-# ---------------------------------------------------------------------------
-
-router = APIRouter(prefix="/users/{user_id}/recipes", tags=["recipes"])
-
-
-@router.post(
-    "",
-    response_model=RecipeResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Import a custom recipe for a user",
-)
-def import_recipe(
-    user_id: uuid.UUID,
-    body: RecipeImport,
-    service: Annotated[RecipeService, Depends(get_recipe_service)],
-) -> RecipeResponse:
-    recipe = service.import_custom(user_id, body)
-    return RecipeResponse.model_validate(recipe)
-
-
-# ---------------------------------------------------------------------------
 # Personal recipes router  —  /recipes
 # ---------------------------------------------------------------------------
 
 personal_router = APIRouter(prefix="/recipes", tags=["recipes"])
+
+
+@personal_router.post(
+    "",
+    response_model=RecipeResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Import a custom recipe",
+)
+def import_recipe(
+    body: RecipeImport,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)] = ...,
+    service: Annotated[RecipeService, Depends(get_recipe_service)] = ...,
+) -> RecipeResponse:
+    recipe = service.import_custom(user_id, body)
+    return RecipeResponse.model_validate(recipe)
 
 
 @personal_router.get(
