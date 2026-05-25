@@ -72,10 +72,10 @@ class TestImportIngredient:
 
         assert response.status_code == 422
 
-    def test_returns_422_when_x_user_id_header_missing(self, client: TestClient) -> None:
+    def test_returns_401_when_no_token_provided(self, client: TestClient) -> None:
         response = client.post("/api/v1/ingredients", json={"name": "Chicken breast"})
 
-        assert response.status_code == 422
+        assert response.status_code == 401
 
     def test_passes_correct_user_id_to_service(self, client: TestClient) -> None:
         user_id = uuid.uuid4()
@@ -169,10 +169,10 @@ class TestListPersonalIngredients:
 
         mock_service.list_personal.assert_called_once_with(user_id, "chicken", 2, 10)
 
-    def test_returns_422_when_x_user_id_header_missing(self, client: TestClient) -> None:
+    def test_returns_401_when_no_token_provided(self, client: TestClient) -> None:
         response = client.get("/api/v1/ingredients")
 
-        assert response.status_code == 422
+        assert response.status_code == 401
 
 
 # ---------------------------------------------------------------------------
