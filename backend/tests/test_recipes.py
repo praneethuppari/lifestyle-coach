@@ -418,6 +418,7 @@ class TestListCatalogRecipes:
         mock_service = MagicMock(spec=RecipeService)
         mock_service.list_catalog.return_value = result
         app.dependency_overrides[get_recipe_service] = lambda: mock_service
+        app.dependency_overrides[get_current_user_id] = lambda: uuid.uuid4()
         return mock_service
 
     def test_returns_paginated_list(self, client: TestClient) -> None:
@@ -447,13 +448,10 @@ class TestListCatalogRecipes:
 
         mock_service.list_catalog.assert_called_once_with(None, 2, 10)
 
-    def test_does_not_require_x_user_id_header(self, client: TestClient) -> None:
-        self._setup(client, ([], 0))
-
-        # No X-User-Id header — catalog is read-only and does not need auth for now
+    def test_returns_401_without_token(self, client: TestClient) -> None:
         response = client.get("/api/v1/catalog/recipes")
 
-        assert response.status_code == 200
+        assert response.status_code == 401
 
 
 # ---------------------------------------------------------------------------
@@ -465,6 +463,7 @@ class TestGetCatalogRecipe:
     def _setup(self, client: TestClient) -> MagicMock:
         mock_service = MagicMock(spec=RecipeService)
         app.dependency_overrides[get_recipe_service] = lambda: mock_service
+        app.dependency_overrides[get_current_user_id] = lambda: uuid.uuid4()
         return mock_service
 
     def test_returns_global_recipe(self, client: TestClient) -> None:

@@ -315,6 +315,7 @@ class TestListCatalogIngredients:
         mock_service = MagicMock(spec=IngredientService)
         mock_service.list_catalog.return_value = result
         app.dependency_overrides[get_ingredient_service] = lambda: mock_service
+        app.dependency_overrides[get_current_user_id] = lambda: uuid.uuid4()
         return mock_service
 
     def test_returns_paginated_catalog(self, client: TestClient) -> None:
@@ -343,13 +344,11 @@ class TestListCatalogIngredients:
 
         mock_service.list_catalog.assert_called_once_with("oats", 3, 5)
 
-    def test_does_not_require_auth_header(self, client: TestClient) -> None:
-        """Catalog is read-only and does not depend on user identity."""
-        self._setup(client, ([], 0))
-
+    def test_returns_401_without_token(self, client: TestClient) -> None:
+        """Catalog requires authentication."""
         response = client.get("/api/v1/catalog/ingredients")
 
-        assert response.status_code == 200
+        assert response.status_code == 401
 
 
 # ---------------------------------------------------------------------------
@@ -361,6 +360,7 @@ class TestGetCatalogIngredient:
     def _setup(self, client: TestClient) -> MagicMock:
         mock_service = MagicMock(spec=IngredientService)
         app.dependency_overrides[get_ingredient_service] = lambda: mock_service
+        app.dependency_overrides[get_current_user_id] = lambda: uuid.uuid4()
         return mock_service
 
     def test_returns_global_ingredient(self, client: TestClient) -> None:
