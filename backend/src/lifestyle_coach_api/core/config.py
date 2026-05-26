@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     )
     api_v1_prefix: str = Field(default="/api/v1")
     database_url: str = Field(default=...)
+    secret_key: str = Field(default=...)
+    access_token_expire_minutes: int = Field(default=30)
 
     model_config = SettingsConfigDict(
         env_file=".env",

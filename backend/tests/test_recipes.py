@@ -66,9 +66,10 @@ class TestImportRecipe:
         mock_service = MagicMock(spec=RecipeService)
         mock_service.import_custom.return_value = recipe
         app.dependency_overrides[get_recipe_service] = lambda: mock_service
+        app.dependency_overrides[get_current_user_id] = lambda: user_id
 
         response = client.post(
-            f"/api/v1/users/{user_id}/recipes",
+            "/api/v1/recipes",
             json={"title": "Chicken Tikka Masala", "cuisine": "indian"},
         )
 
@@ -81,13 +82,22 @@ class TestImportRecipe:
 
     def test_returns_422_when_title_is_missing(self, client: TestClient) -> None:
         user_id = uuid.uuid4()
+        app.dependency_overrides[get_current_user_id] = lambda: user_id
 
         response = client.post(
-            f"/api/v1/users/{user_id}/recipes",
+            "/api/v1/recipes",
             json={"cuisine": "italian"},
         )
 
         assert response.status_code == 422
+
+    def test_returns_401_when_no_token_provided(self, client: TestClient) -> None:
+        response = client.post(
+            "/api/v1/recipes",
+            json={"title": "My Recipe"},
+        )
+
+        assert response.status_code == 401
 
     def test_passes_correct_user_id_to_service(self, client: TestClient) -> None:
         user_id = uuid.uuid4()
@@ -95,23 +105,16 @@ class TestImportRecipe:
         mock_service = MagicMock(spec=RecipeService)
         mock_service.import_custom.return_value = recipe
         app.dependency_overrides[get_recipe_service] = lambda: mock_service
+        app.dependency_overrides[get_current_user_id] = lambda: user_id
 
         client.post(
-            f"/api/v1/users/{user_id}/recipes",
+            "/api/v1/recipes",
             json={"title": "My Recipe"},
         )
 
         mock_service.import_custom.assert_called_once()
         called_user_id = mock_service.import_custom.call_args[0][0]
         assert called_user_id == user_id
-
-    def test_returns_422_when_user_id_is_not_a_uuid(self, client: TestClient) -> None:
-        response = client.post(
-            "/api/v1/users/not-a-uuid/recipes",
-            json={"title": "My Recipe"},
-        )
-
-        assert response.status_code == 422
 
     def test_imports_recipe_with_all_optional_fields(self, client: TestClient) -> None:
         user_id = uuid.uuid4()
@@ -130,9 +133,10 @@ class TestImportRecipe:
         mock_service = MagicMock(spec=RecipeService)
         mock_service.import_custom.return_value = recipe
         app.dependency_overrides[get_recipe_service] = lambda: mock_service
+        app.dependency_overrides[get_current_user_id] = lambda: user_id
 
         response = client.post(
-            f"/api/v1/users/{user_id}/recipes",
+            "/api/v1/recipes",
             json={
                 "title": "Chicken Tikka Masala",
                 "difficulty": "easy",
@@ -209,11 +213,11 @@ class TestListPersonalRecipes:
 
         mock_service.list_personal.assert_called_once_with(user_id, None, 3, 5)
 
-    def test_returns_422_when_x_user_id_header_missing(self, client: TestClient) -> None:
-        # Do not override get_current_user_id — test real header parsing
+    def test_returns_401_when_no_token_provided(self, client: TestClient) -> None:
+        # Do not override get_current_user_id — verify Bearer token is required
         response = client.get("/api/v1/recipes")
 
-        assert response.status_code == 422
+        assert response.status_code == 401
 
     def test_response_includes_serving_fields(self, client: TestClient) -> None:
         user_id = uuid.uuid4()
@@ -414,6 +418,7 @@ class TestListCatalogRecipes:
         mock_service = MagicMock(spec=RecipeService)
         mock_service.list_catalog.return_value = result
         app.dependency_overrides[get_recipe_service] = lambda: mock_service
+        app.dependency_overrides[get_current_user_id] = lambda: uuid.uuid4()
         return mock_service
 
     def test_returns_paginated_list(self, client: TestClient) -> None:
@@ -443,13 +448,10 @@ class TestListCatalogRecipes:
 
         mock_service.list_catalog.assert_called_once_with(None, 2, 10)
 
-    def test_does_not_require_x_user_id_header(self, client: TestClient) -> None:
-        self._setup(client, ([], 0))
-
-        # No X-User-Id header — catalog is read-only and does not need auth for now
+    def test_returns_401_without_token(self, client: TestClient) -> None:
         response = client.get("/api/v1/catalog/recipes")
 
-        assert response.status_code == 200
+        assert response.status_code == 401
 
 
 # ---------------------------------------------------------------------------
@@ -461,6 +463,7 @@ class TestGetCatalogRecipe:
     def _setup(self, client: TestClient) -> MagicMock:
         mock_service = MagicMock(spec=RecipeService)
         app.dependency_overrides[get_recipe_service] = lambda: mock_service
+        app.dependency_overrides[get_current_user_id] = lambda: uuid.uuid4()
         return mock_service
 
     def test_returns_global_recipe(self, client: TestClient) -> None:
@@ -544,7 +547,7 @@ class TestRecipeWithIngredients:
         app.dependency_overrides[get_current_user_id] = lambda: user_id
 
         response = client.post(
-            f"/api/v1/users/{user_id}/recipes",
+            "/api/v1/recipes",
             json={
                 "title": "Chicken Salad",
                 "ingredients": [
@@ -573,7 +576,7 @@ class TestRecipeWithIngredients:
         app.dependency_overrides[get_current_user_id] = lambda: user_id
 
         client.post(
-            f"/api/v1/users/{user_id}/recipes",
+            "/api/v1/recipes",
             json={
                 "title": "Chicken Salad",
                 "ingredients": [
@@ -599,7 +602,7 @@ class TestRecipeWithIngredients:
         app.dependency_overrides[get_current_user_id] = lambda: user_id
 
         response = client.post(
-            f"/api/v1/users/{user_id}/recipes",
+            "/api/v1/recipes",
             json={"title": "Simple Recipe"},
         )
 

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, String
+from sqlalchemy import DateTime, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -14,14 +14,7 @@ if TYPE_CHECKING:
 
 
 class User(Base):
-    """
-    Core user identity table.
-
-    Authentication credentials (password hash, OAuth tokens, sessions) are
-    intentionally excluded — add them when auth is introduced. This table exists
-    now so that user-scoped foreign keys (e.g. user-created ingredients) have a
-    valid referent.
-    """
+    """Core user identity and authentication table."""
 
     __tablename__ = "users"
 
@@ -30,6 +23,7 @@ class User(Base):
     )
     email: Mapped[str] = mapped_column(String(320), nullable=False, unique=True)
     display_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    hashed_password: Mapped[str] = mapped_column(Text(), nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)

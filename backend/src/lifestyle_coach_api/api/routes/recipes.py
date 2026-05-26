@@ -25,32 +25,25 @@ def get_recipe_service(db: Annotated[Session, Depends(get_db)]) -> RecipeService
 
 
 # ---------------------------------------------------------------------------
-# Legacy router — do not modify (will be removed in feature/basic-auth)
-# ---------------------------------------------------------------------------
-
-router = APIRouter(prefix="/users/{user_id}/recipes", tags=["recipes"])
-
-
-@router.post(
-    "",
-    response_model=RecipeResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Import a custom recipe for a user",
-)
-def import_recipe(
-    user_id: uuid.UUID,
-    body: RecipeImport,
-    service: Annotated[RecipeService, Depends(get_recipe_service)],
-) -> RecipeResponse:
-    recipe = service.import_custom(user_id, body)
-    return RecipeResponse.model_validate(recipe)
-
-
-# ---------------------------------------------------------------------------
 # Personal recipes router  —  /recipes
 # ---------------------------------------------------------------------------
 
 personal_router = APIRouter(prefix="/recipes", tags=["recipes"])
+
+
+@personal_router.post(
+    "",
+    response_model=RecipeResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Import a custom recipe",
+)
+def import_recipe(
+    body: RecipeImport,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[RecipeService, Depends(get_recipe_service)],
+) -> RecipeResponse:
+    recipe = service.import_custom(user_id, body)
+    return RecipeResponse.model_validate(recipe)
 
 
 @personal_router.get(
@@ -59,11 +52,11 @@ personal_router = APIRouter(prefix="/recipes", tags=["recipes"])
     summary="List or search the caller's personal recipes",
 )
 def list_personal_recipes(
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[RecipeService, Depends(get_recipe_service)],
     q: str | None = None,
     page: int = 1,
     page_size: int = 20,
-    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)] = ...,
-    service: Annotated[RecipeService, Depends(get_recipe_service)] = ...,
 ) -> RecipeListResponse:
     items, total = service.list_personal(user_id, q, page, page_size)
     return RecipeListResponse(
@@ -81,8 +74,8 @@ def list_personal_recipes(
 )
 def get_personal_recipe(
     recipe_id: uuid.UUID,
-    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)] = ...,
-    service: Annotated[RecipeService, Depends(get_recipe_service)] = ...,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[RecipeService, Depends(get_recipe_service)],
 ) -> RecipeResponse:
     recipe = service.get_personal(user_id, recipe_id)
     return RecipeResponse.model_validate(recipe)
@@ -96,8 +89,8 @@ def get_personal_recipe(
 def update_personal_recipe(
     recipe_id: uuid.UUID,
     body: RecipeUpdate,
-    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)] = ...,
-    service: Annotated[RecipeService, Depends(get_recipe_service)] = ...,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[RecipeService, Depends(get_recipe_service)],
 ) -> RecipeResponse:
     recipe = service.update(user_id, recipe_id, body)
     return RecipeResponse.model_validate(recipe)
@@ -110,8 +103,8 @@ def update_personal_recipe(
 )
 def delete_personal_recipe(
     recipe_id: uuid.UUID,
-    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)] = ...,
-    service: Annotated[RecipeService, Depends(get_recipe_service)] = ...,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[RecipeService, Depends(get_recipe_service)],
 ) -> None:
     service.delete(user_id, recipe_id)
 
@@ -120,7 +113,11 @@ def delete_personal_recipe(
 # Catalog router  —  /catalog/recipes  (read-only, global recipes)
 # ---------------------------------------------------------------------------
 
-catalog_router = APIRouter(prefix="/catalog/recipes", tags=["catalog"])
+catalog_router = APIRouter(
+    prefix="/catalog/recipes",
+    tags=["catalog"],
+    dependencies=[Depends(get_current_user_id)],
+)
 
 
 @catalog_router.get(
@@ -129,10 +126,10 @@ catalog_router = APIRouter(prefix="/catalog/recipes", tags=["catalog"])
     summary="List or search the global recipe catalog",
 )
 def list_catalog_recipes(
+    service: Annotated[RecipeService, Depends(get_recipe_service)],
     q: str | None = None,
     page: int = 1,
     page_size: int = 20,
-    service: Annotated[RecipeService, Depends(get_recipe_service)] = ...,
 ) -> RecipeListResponse:
     items, total = service.list_catalog(q, page, page_size)
     return RecipeListResponse(
@@ -150,7 +147,7 @@ def list_catalog_recipes(
 )
 def get_catalog_recipe(
     recipe_id: uuid.UUID,
-    service: Annotated[RecipeService, Depends(get_recipe_service)] = ...,
+    service: Annotated[RecipeService, Depends(get_recipe_service)],
 ) -> RecipeResponse:
     recipe = service.get_catalog(recipe_id)
     return RecipeResponse.model_validate(recipe)

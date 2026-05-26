@@ -52,11 +52,11 @@ def import_ingredient(
     summary="List or search the caller's personal ingredient library",
 )
 def list_personal_ingredients(
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[IngredientService, Depends(get_ingredient_service)],
     q: str | None = None,
     page: int = 1,
     page_size: int = 20,
-    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)] = ...,
-    service: Annotated[IngredientService, Depends(get_ingredient_service)] = ...,
 ) -> IngredientListResponse:
     items, total = service.list_personal(user_id, q, page, page_size)
     return IngredientListResponse(
@@ -113,7 +113,11 @@ def delete_ingredient(
 # Catalog ingredients router  —  /catalog/ingredients
 # ---------------------------------------------------------------------------
 
-catalog_router = APIRouter(prefix="/catalog/ingredients", tags=["catalog"])
+catalog_router = APIRouter(
+    prefix="/catalog/ingredients",
+    tags=["catalog"],
+    dependencies=[Depends(get_current_user_id)],
+)
 
 
 @catalog_router.get(
@@ -122,10 +126,10 @@ catalog_router = APIRouter(prefix="/catalog/ingredients", tags=["catalog"])
     summary="List or search the global ingredient catalog",
 )
 def list_catalog_ingredients(
+    service: Annotated[IngredientService, Depends(get_ingredient_service)],
     q: str | None = None,
     page: int = 1,
     page_size: int = 20,
-    service: Annotated[IngredientService, Depends(get_ingredient_service)] = ...,
 ) -> IngredientListResponse:
     items, total = service.list_catalog(q, page, page_size)
     return IngredientListResponse(
